@@ -1,9 +1,190 @@
-<html>
-  <title>Lucas' AI games</title>
-  
-  <main>
-    <h1>lucas ai games</h1>
-    <a href="page2.html">page2</a>
-    <h2>Hello World</h2>
- </main>
+<!-- index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <!--
+    Arcade Menu / Launcher (Single File, Dark Mode)
+    -----------------------------------------------
+    Purpose:
+      - A minimal, responsive hub to launch games in the same folder.
+      - Ships with one real game (Pong) and a few placeholders.
+      - Clean, accessible, keyboard-friendly, and mobile-friendly.
+
+    How to add a new game card:
+      1) Copy the <article class="card">…</article> block.
+      2) Update the game title, description, and <a href="yourgame.html">Play</a> URL.
+      3) If the game isn't ready, add aria-disabled="true" to the Play button and keep href as "#".
+
+    Notes:
+      - No external assets or libraries.
+      - Forced dark theme for consistent appearance.
+      - Large tap targets and visible focus ring.
+  -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Arcade</title>
+  <style>
+    :root{
+      --bg:#0b0b0c;
+      --fg:#f3f4f6;
+      --muted:#9ca3af;
+      --card:#111214;
+      --ring:#2563eb;
+      --shadow: 0 2px 12px rgba(0,0,0,.45);
+      --radius: 14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      color:var(--fg);
+      background:radial-gradient(1200px 800px at 50% -200px, #151517, var(--bg));
+    }
+    a{color:inherit}
+    .wrap{
+      max-width:1100px;
+      margin-inline:auto;
+      padding:24px;
+    }
+    header{
+      display:grid;
+      gap:8px;
+      margin-block:8px 20px;
+    }
+    header h1{
+      margin:0;
+      font-size:clamp(24px, 3vw, 36px);
+      letter-spacing:.2px;
+    }
+    header p{
+      margin:0;
+      color:var(--muted);
+      max-width:70ch;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap:16px;
+    }
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      min-height:180px;
+      transition:transform .1s ease, box-shadow .15s ease;
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .card:focus-within, .card:hover{
+      transform:translateY(-2px);
+      box-shadow:0 6px 24px rgba(0,0,0,.6);
+    }
+    .card h2{
+      margin:0 0 4px;
+      font-size:1.125rem;
+    }
+    .card p{
+      margin:0 0 12px;
+      color:var(--muted);
+    }
+    .actions{
+      margin-top:auto;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:44px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid color-mix(in oklab, var(--ring), var(--fg) 40%);
+      background:transparent;
+      text-decoration:none;
+      font-weight:600;
+      cursor:pointer;
+      box-shadow: inset 0 0 0 0 transparent;
+      transition:box-shadow .15s ease, transform .05s ease, background .15s ease;
+    }
+    .btn:hover{ background:rgba(255,255,255,0.04); }
+    .btn:focus-visible{
+      outline:none;
+      box-shadow:0 0 0 3px color-mix(in oklab, var(--ring) 70%, white 30%);
+    }
+    .btn[aria-disabled="true"]{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+    footer{
+      margin-block:28px 8px;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header role="banner" aria-labelledby="title">
+      <h1 id="title">Arcade</h1>
+      <p id="desc">A tiny, extendable web arcade. Launch a game below. Add more by dropping new single-file HTML games next to this page and duplicating a card.</p>
+    </header>
+
+    <main role="main" aria-describedby="desc">
+      <section aria-label="Game list" class="grid">
+        <!-- Real game -->
+        <article class="card" aria-labelledby="pong-title" tabindex="-1">
+          <div>
+            <h2 id="pong-title">Pong</h2>
+            <p>Classic paddle-and-ball. Play solo vs CPU or 2-player. Works with keyboard and touch.</p>
+          </div>
+          <div class="actions">
+            <a class="btn" href="./pong.html" aria-label="Play Pong">Play</a>
+          </div>
+        </article>
+
+        <!-- Placeholder games (examples for future additions) -->
+        <article class="card" aria-labelledby="brick-title" tabindex="-1">
+          <div>
+            <h2 id="brick-title">Brick Breaker</h2>
+            <p>Break all the bricks with a bouncing ball. Single-file web game coming soon.</p>
+          </div>
+          <div class="actions">
+            <a class="btn" href="#" aria-disabled="true" aria-label="Brick Breaker coming soon">Coming soon</a>
+          </div>
+        </article>
+
+        <article class="card" aria-labelledby="snake-title" tabindex="-1">
+          <div>
+            <h2 id="snake-title">Snake</h2>
+            <p>Grow the longest snake. Careful not to bite your tail!</p>
+          </div>
+          <div class="actions">
+            <a class="btn" href="#" aria-disabled="true" aria-label="Snake coming soon">Coming soon</a>
+          </div>
+        </article>
+
+        <article class="card" aria-labelledby="tetris-title" tabindex="-1">
+          <div>
+            <h2 id="tetris-title">Falling Blocks</h2>
+            <p>Stack the shapes to clear lines. Minimal & readable single-file build.</p>
+          </div>
+          <div class="actions">
+            <a class="btn" href="#" aria-disabled="true" aria-label="Falling Blocks coming soon">Coming soon</a>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer role="contentinfo">
+      <span>Tip: Add a new game by duplicating a card and pointing the Play button to your file.</span>
+    </footer>
+  </div>
+</body>
 </html>
