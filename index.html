@@ -3,22 +3,21 @@
 <html lang="en">
 <head>
   <!--
-    Arcade Menu / Launcher (Single File, Dark Mode)
+    Arcade Menu / Launcher (Dark Mode, Polished UI)
     -----------------------------------------------
-    Purpose:
-      - A minimal, responsive hub to launch games in the same folder.
-      - Ships with one real game (Pong) and a few placeholders.
-      - Clean, accessible, keyboard-friendly, and mobile-friendly.
+    Goes with: pong.html, snake.html (same folder)
 
-    How to add a new game card:
-      1) Copy the <article class="card">…</article> block.
-      2) Update the game title, description, and <a href="yourgame.html">Play</a> URL.
-      3) If the game isn't ready, add aria-disabled="true" to the Play button and keep href as "#".
+    What's new (visuals):
+    - Neon gradient background with soft animated stars
+    - Glassy header + footer
+    - Game cards with animated gradient borders, hover parallax, and subtle glow
+    - Compact search with filter chips
+    - Large tap targets, strong focus outlines, and reduced motion support
 
-    Notes:
-      - No external assets or libraries.
-      - Forced dark theme for consistent appearance.
-      - Large tap targets and visible focus ring.
+    Add a new game card:
+      1) Duplicate an <article class="card">…</article> in #grid.
+      2) Update <h3>, description, and Play button href (e.g. "./tetris.html").
+      3) If a game isn’t ready, keep href="#" and add aria-disabled="true" to the button.
   -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
@@ -26,165 +25,372 @@
   <title>Arcade</title>
   <style>
     :root{
-      --bg:#0b0b0c;
-      --fg:#f3f4f6;
-      --muted:#9ca3af;
-      --card:#111214;
-      --ring:#2563eb;
-      --shadow: 0 2px 12px rgba(0,0,0,.45);
-      --radius: 14px;
+      --bg:#070709;
+      --bg2:#0b0b0f;
+      --fg:#eef2ff;
+      --muted:#a5b4fc;
+      --card:#0f1117;
+      --glass: color-mix(in oklab, #ffffff 8%, transparent);
+      --ring:#7c3aed;      /* violet */
+      --accent:#22d3ee;    /* cyan */
+      --accent2:#22c55e;   /* green */
+      --warning:#f59e0b;
+      --danger:#ef4444;
+      --radius: 16px;
+      --shadow-1: 0 8px 24px rgba(0,0,0,.36);
+      --shadow-2: 0 16px 40px rgba(0,0,0,.55);
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
+
+    @media (prefers-reduced-motion: reduce){
+      * { animation: none !important; transition: none !important; }
+    }
+
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
     body{
       margin:0;
-      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
       color:var(--fg);
-      background:radial-gradient(1200px 800px at 50% -200px, #151517, var(--bg));
+      font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      background:
+        radial-gradient(1200px 900px at 20% -10%, #1b0d3a 0%, transparent 60%),
+        radial-gradient(1200px 900px at 80% 110%, #063a3d 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+      overflow-x:hidden;
+      -webkit-font-smoothing:antialiased;
     }
-    a{color:inherit}
-    .wrap{
-      max-width:1100px;
-      margin-inline:auto;
-      padding:24px;
+
+    /* Soft twinkling particles */
+    .stars::before, .stars::after{
+      content:"";
+      position:fixed; inset:-20vh -20vw;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(255,255,255,.12) 0 1px, transparent 1px) 0 0/14px 24px,
+        radial-gradient(circle at 80% 70%, rgba(255,255,255,.08) 0 1px, transparent 1px) 0 0/18px 30px,
+        radial-gradient(circle at 60% 20%, rgba(255,255,255,.10) 0 1px, transparent 1px) 0 0/22px 36px;
+      pointer-events:none;
+      animation: drift 40s linear infinite;
+      mix-blend-mode:screen;
     }
+    .stars::after{ animation-duration: 65s; opacity:.7; }
+
+    @keyframes drift{
+      0%{ transform: translate3d(0,0,0) }
+      50%{ transform: translate3d(2vw, -2vh, 0) }
+      100%{ transform: translate3d(0,0,0) }
+    }
+
+    .wrap{ max-width:1200px; margin-inline:auto; padding:32px 20px 24px; position:relative; }
+
+    /* Glass header */
     header{
-      display:grid;
-      gap:8px;
-      margin-block:8px 20px;
+      position:sticky; top:0; z-index:10;
+      margin:-10px auto 24px;
+      backdrop-filter:saturate(1.2) blur(8px);
+      background:linear-gradient(180deg, var(--glass), transparent);
+      border-bottom:1px solid color-mix(in oklab, var(--ring) 18%, transparent);
     }
-    header h1{
-      margin:0;
-      font-size:clamp(24px, 3vw, 36px);
-      letter-spacing:.2px;
+    .hero{
+      display:grid; gap:8px;
+      padding:22px 20px 16px;
     }
-    header p{
-      margin:0;
-      color:var(--muted);
-      max-width:70ch;
+    .brand{
+      display:flex; align-items:center; gap:12px;
     }
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap:16px;
+    .logo{
+      width:42px; height:42px; border-radius:12px;
+      background: conic-gradient(from 210deg, var(--accent), var(--ring), var(--accent2), var(--accent));
+      box-shadow: var(--shadow-1);
+      position:relative;
     }
-    .card{
-      background:var(--card);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:16px;
-      display:flex;
-      flex-direction:column;
-      justify-content:space-between;
-      min-height:180px;
-      transition:transform .1s ease, box-shadow .15s ease;
-      border:1px solid rgba(255,255,255,.06);
+    .logo::after{
+      content:"";
+      position:absolute; inset:2px;
+      border-radius:10px; background:var(--card);
     }
-    .card:focus-within, .card:hover{
-      transform:translateY(-2px);
-      box-shadow:0 6px 24px rgba(0,0,0,.6);
+    h1{
+      margin:0; font-weight:800; letter-spacing:.2px;
+      font-size: clamp(22px, 4vw, 34px);
+      display:flex; align-items:baseline; gap:.6ch;
     }
-    .card h2{
-      margin:0 0 4px;
-      font-size:1.125rem;
-    }
-    .card p{
-      margin:0 0 12px;
-      color:var(--muted);
-    }
-    .actions{
-      margin-top:auto;
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-    .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-height:44px;
-      padding:10px 14px;
-      border-radius:12px;
-      border:1px solid color-mix(in oklab, var(--ring), var(--fg) 40%);
-      background:transparent;
-      text-decoration:none;
-      font-weight:600;
-      cursor:pointer;
+    h1 .sub{ font-size:.55em; color:var(--muted); font-weight:600; }
+
+    .blurb{ margin:0; color:var(--muted); max-width:75ch; }
+
+    /* Toolbar (search + chips) */
+    .toolbar{ display:flex; gap:10px; flex-wrap:wrap; padding:6px 20px 16px; }
+    .search{
+      flex:1 1 280px; min-width:200px;
+      min-height:44px; padding:10px 14px 10px 42px;
+      color:var(--fg); background:rgba(255,255,255,.04);
+      border:1px solid color-mix(in oklab, var(--ring) 30%, transparent);
+      border-radius:12px; outline:none;
+      background-image:
+        radial-gradient(circle at 14px 50%, var(--muted) 2px, transparent 3px),
+        radial-gradient(circle at 26px 50%, var(--muted) 1.5px, transparent 2.5px);
+      background-repeat:no-repeat;
+      background-size: 16px 16px, 10px 10px;
+      background-position: 14px 50%, 26px 50%;
       box-shadow: inset 0 0 0 0 transparent;
-      transition:box-shadow .15s ease, transform .05s ease, background .15s ease;
+      transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
     }
-    .btn:hover{ background:rgba(255,255,255,0.04); }
-    .btn:focus-visible{
-      outline:none;
-      box-shadow:0 0 0 3px color-mix(in oklab, var(--ring) 70%, white 30%);
+    .search:focus{ box-shadow:0 0 0 3px color-mix(in oklab, var(--ring) 60%, white 10%); border-color: var(--ring); }
+
+    .chips{ display:flex; gap:8px; flex-wrap:wrap; }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid color-mix(in oklab, var(--ring) 32%, transparent);
+      background:rgba(255,255,255,.04);
+      min-height:36px; padding:6px 10px; border-radius:999px;
+      cursor:pointer; user-select:none; font-weight:700;
+      transition: background .15s ease, box-shadow .15s ease;
     }
-    .btn[aria-disabled="true"]{
-      opacity:.55;
-      cursor:not-allowed;
+    .chip[aria-pressed="true"]{
+      box-shadow: inset 0 0 0 9999px color-mix(in oklab, var(--accent) 18%, transparent);
+      border-color: color-mix(in oklab, var(--accent) 70%, var(--ring) 30%);
     }
+    .chip:focus-visible{ outline:none; box-shadow:0 0 0 3px color-mix(in oklab, var(--ring) 70%, white 20%); }
+
+    /* Grid */
+    .grid{
+      display:grid; gap:18px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      padding: 6px 4px 24px;
+    }
+
+    /* Card with animated border and parallax cover */
+    .card{
+      position:relative; isolation:isolate;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      padding:12px; display:flex; flex-direction:column; gap:10px;
+      box-shadow: var(--shadow-1);
+      overflow:hidden;
+      transition: transform .12s ease, box-shadow .2s ease;
+    }
+    .card::before{
+      /* animated edge glow */
+      content:""; position:absolute; inset:-2px;
+      border-radius: calc(var(--radius) + 2px);
+      background: conic-gradient(from 0deg, transparent 0 20%, var(--ring), var(--accent), var(--accent2), transparent 80%);
+      filter: blur(10px); opacity:.35; z-index:-1;
+      animation: spin 12s linear infinite;
+    }
+    @keyframes spin { to{ transform: rotate(360deg) } }
+
+    .card:hover{ transform: translateY(-3px); box-shadow: var(--shadow-2); }
+
+    .cover{
+      position:relative; height:140px; border-radius:12px; overflow:hidden;
+      background:
+        radial-gradient(800px 300px at 50% -100px, rgba(124,58,237,.35), transparent 60%),
+        linear-gradient(135deg, rgba(34,211,238,.28), rgba(34,197,94,.28));
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .cover::after{
+      content:"";
+      position:absolute; inset:-20%;
+      background:
+        repeating-linear-gradient( 25deg, rgba(255,255,255,.05) 0 12px, transparent 12px 24px),
+        radial-gradient(1200px 500px at 60% -200px, rgba(255,255,255,.08), transparent 60%);
+      transform: translate3d(0,0,0);
+      transition: transform .35s ease;
+    }
+    .card:hover .cover::after{ transform: translate3d(6px,-6px,0); }
+
+    .card h3{
+      margin:0; font-size:1.05rem; letter-spacing:.2px; font-weight:800;
+      display:flex; align-items:center; gap:8px;
+    }
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:.72rem; font-weight:800;
+      background: color-mix(in oklab, var(--accent) 25%, transparent);
+      color: #071b1c;
+      padding:2px 8px; border-radius:999px;
+      border:1px solid color-mix(in oklab, var(--accent) 70%, #fff 30%);
+    }
+    .meta{ margin:0; color:var(--muted); min-height:3lh; }
+
+    .actions{ display:flex; gap:8px; margin-top:2px; }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      min-height:44px; padding:10px 14px;
+      border-radius:12px; border:1px solid color-mix(in oklab, var(--ring) 40%, transparent);
+      background: rgba(255,255,255,.03); color:inherit; text-decoration:none; font-weight:800;
+      cursor:pointer; transition: background .15s ease, box-shadow .15s ease, transform .06s ease;
+    }
+    .btn:hover{ background:rgba(255,255,255,.07); }
+    .btn:active{ transform: translateY(1px); }
+    .btn:focus-visible{ outline:none; box-shadow:0 0 0 3px color-mix(in oklab, var(--ring) 70%, white 20%); }
+    .btn[aria-disabled="true"]{ opacity:.55; cursor:not-allowed; }
+
+    .btn.primary{
+      border-color: color-mix(in oklab, var(--accent2) 65%, var(--ring) 35%);
+      box-shadow: inset 0 0 0 9999px color-mix(in oklab, var(--accent2) 18%, transparent);
+    }
+
+    /* Footer */
     footer{
-      margin-block:28px 8px;
+      margin:10px 0 28px; padding:12px 16px;
+      backdrop-filter:saturate(1.2) blur(6px);
+      background:linear-gradient(180deg, transparent, var(--glass));
+      border-top:1px solid color-mix(in oklab, var(--ring) 18%, transparent);
       color:var(--muted);
-      font-size:.9rem;
+      text-align:center; border-radius:12px;
+    }
+
+    /* Utility: hide text label but keep for a11y */
+    .sr-only{
+      position:absolute !important;
+      width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
     }
   </style>
 </head>
-<body>
+<body class="stars">
   <div class="wrap">
-    <header role="banner" aria-labelledby="title">
-      <h1 id="title">Arcade</h1>
-      <p id="desc">A tiny, extendable web arcade. Launch a game below. Add more by dropping new single-file HTML games next to this page and duplicating a card.</p>
+    <header>
+      <div class="hero" role="banner" aria-labelledby="title">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <h1 id="title">Arcade <span class="sub">– tiny web games</span></h1>
+        </div>
+        <p id="desc" class="blurb">
+          Launch a game below. Keyboard & touch supported. Add more by duplicating a card and pointing the Play button to your new single-file HTML game.
+        </p>
+      </div>
+
+      <div class="toolbar" role="search" aria-describedby="desc">
+        <label for="q" class="sr-only">Search games</label>
+        <input id="q" class="search" type="search" placeholder="Search games…" autocomplete="off" spellcheck="false" />
+        <div class="chips" aria-label="Quick filters">
+          <button class="chip" data-filter="all" aria-pressed="true">All</button>
+          <button class="chip" data-filter="classic" aria-pressed="false">Classic</button>
+          <button class="chip" data-filter="action" aria-pressed="false">Action</button>
+          <button class="chip" data-filter="puzzle" aria-pressed="false">Puzzle</button>
+        </div>
+      </div>
     </header>
 
     <main role="main" aria-describedby="desc">
-      <section aria-label="Game list" class="grid">
-        <!-- Real game -->
-        <article class="card" aria-labelledby="pong-title" tabindex="-1">
-          <div>
-            <h2 id="pong-title">Pong</h2>
-            <p>Classic paddle-and-ball. Play solo vs CPU or 2-player. Works with keyboard and touch.</p>
-          </div>
+      <section aria-label="Game list" class="grid" id="grid">
+        <!-- Pong -->
+        <article class="card" data-title="pong classic paddle ball two player cpu" data-tags="classic action" aria-labelledby="pong-title">
+          <div class="cover" aria-hidden="true"></div>
+          <h3 id="pong-title">Pong <span class="badge">1–2 Players</span></h3>
+          <p class="meta">Classic paddle-and-ball. Solo vs CPU or 2-player. Keyboard + touch.</p>
           <div class="actions">
-            <a class="btn" href="./pong.html" aria-label="Play Pong">Play</a>
+            <a class="btn primary" href="./pong.html" aria-label="Play Pong">
+              <!-- play icon -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              Play
+            </a>
           </div>
         </article>
 
-        <!-- Placeholder games (examples for future additions) -->
-        <article class="card" aria-labelledby="brick-title" tabindex="-1">
-          <div>
-            <h2 id="brick-title">Brick Breaker</h2>
-            <p>Break all the bricks with a bouncing ball. Single-file web game coming soon.</p>
-          </div>
+        <!-- Snake -->
+        <article class="card" data-title="snake classic arcade swipe wasd arrow keys" data-tags="classic" aria-labelledby="snake-title">
+          <div class="cover" aria-hidden="true" style="background:
+            radial-gradient(800px 300px at 50% -100px, rgba(34,197,94,.35), transparent 60%),
+            linear-gradient(135deg, rgba(34,211,238,.18), rgba(34,197,94,.38));"></div>
+          <h3 id="snake-title">Snake <span class="badge">Endless</span></h3>
+          <p class="meta">Eat to grow, avoid walls and yourself. Keyboard, swipe, or on-screen controls.</p>
           <div class="actions">
-            <a class="btn" href="#" aria-disabled="true" aria-label="Brick Breaker coming soon">Coming soon</a>
+            <a class="btn primary" href="./snake.html" aria-label="Play Snake">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              Play
+            </a>
           </div>
         </article>
 
-        <article class="card" aria-labelledby="snake-title" tabindex="-1">
-          <div>
-            <h2 id="snake-title">Snake</h2>
-            <p>Grow the longest snake. Careful not to bite your tail!</p>
-          </div>
+        <!-- Placeholder examples -->
+        <article class="card" data-title="brick breaker breakout paddle ball" data-tags="classic puzzle" aria-labelledby="brick-title">
+          <div class="cover" aria-hidden="true" style="background:
+            radial-gradient(800px 300px at 50% -100px, rgba(245,158,11,.35), transparent 60%),
+            linear-gradient(135deg, rgba(124,58,237,.18), rgba(245,158,11,.28));"></div>
+          <h3 id="brick-title">Brick Breaker <span class="badge">Soon</span></h3>
+          <p class="meta">Break all the bricks with a bouncing ball. Minimal, readable single-file build.</p>
           <div class="actions">
-            <a class="btn" href="#" aria-disabled="true" aria-label="Snake coming soon">Coming soon</a>
+            <a class="btn" href="#" aria-disabled="true">Coming soon</a>
           </div>
         </article>
 
-        <article class="card" aria-labelledby="tetris-title" tabindex="-1">
-          <div>
-            <h2 id="tetris-title">Falling Blocks</h2>
-            <p>Stack the shapes to clear lines. Minimal & readable single-file build.</p>
-          </div>
+        <article class="card" data-title="falling blocks tetris puzzle" data-tags="puzzle" aria-labelledby="blocks-title">
+          <div class="cover" aria-hidden="true" style="background:
+            radial-gradient(800px 300px at 50% -100px, rgba(124,58,237,.35), transparent 60%),
+            linear-gradient(135deg, rgba(34,211,238,.18), rgba(124,58,237,.28));"></div>
+          <h3 id="blocks-title">Falling Blocks <span class="badge">Soon</span></h3>
+          <p class="meta">Stack shapes to clear lines. Keyboard & touch, single-file game.</p>
           <div class="actions">
-            <a class="btn" href="#" aria-disabled="true" aria-label="Falling Blocks coming soon">Coming soon</a>
+            <a class="btn" href="#" aria-disabled="true">Coming soon</a>
           </div>
         </article>
       </section>
     </main>
 
     <footer role="contentinfo">
-      <span>Tip: Add a new game by duplicating a card and pointing the Play button to your file.</span>
+      Tip: Add a new game by duplicating a card and pointing the Play button to your file.
     </footer>
   </div>
+
+  <script>
+    // --- Simple Search + Chip Filters ---
+    const q = document.getElementById('q');
+    const cards = [...document.querySelectorAll('.card')];
+    const chips = [...document.querySelectorAll('.chip')];
+    let activeTag = 'all';
+
+    function applyFilters(){
+      const term = (q.value || '').trim().toLowerCase();
+      cards.forEach(card => {
+        const text = (card.dataset.title || '').toLowerCase();
+        const tags = (card.dataset.tags || '').toLowerCase().split(/\s+/);
+        const matchesText = !term || text.includes(term);
+        const matchesTag = activeTag === 'all' || tags.includes(activeTag);
+        card.style.display = (matchesText && matchesTag) ? '' : 'none';
+      });
+    }
+
+    q.addEventListener('input', applyFilters);
+
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        chips.forEach(c => c.setAttribute('aria-pressed', 'false'));
+        chip.setAttribute('aria-pressed', 'true');
+        activeTag = chip.dataset.filter;
+        applyFilters();
+      });
+      chip.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chip.click(); }
+      });
+    });
+
+    // Keyboard focus outline on cards for a11y (focus within)
+    document.getElementById('grid').addEventListener('focusin', (e)=>{
+      const card = e.target.closest('.card');
+      if (card) card.style.boxShadow = '0 0 0 3px color-mix(in oklab, var(--ring) 70%, white 20%), var(--shadow-2)';
+    });
+    document.getElementById('grid').addEventListener('focusout', (e)=>{
+      const card = e.target.closest('.card');
+      if (card) card.style.boxShadow = '';
+    });
+
+    // Parallax tilt on mousemove (desktop nicety)
+    const prefersNoMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!prefersNoMotion && matchMedia('(hover:hover)').matches){
+      cards.forEach(card=>{
+        card.addEventListener('mousemove', (e)=>{
+          const r = card.getBoundingClientRect();
+          const x = (e.clientX - r.left) / r.width - .5;
+          const y = (e.clientY - r.top) / r.height - .5;
+          card.style.transform = `perspective(800px) rotateX(${ -y*4 }deg) rotateY(${ x*6 }deg) translateY(-3px)`;
+        });
+        card.addEventListener('mouseleave', ()=>{
+          card.style.transform = '';
+        });
+      });
+    }
+  </script>
 </body>
 </html>

@@ -1,0 +1,787 @@
+<!-- snake.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <!--
+    Snake (Single File, Dark Mode, Modernized Grid)
+    -----------------------------------------------
+    What's fixed/changed:
+      - Grid now pixel-perfect on all displays (retina-aware using devicePixelRatio)
+      - Clean, modern look (removed scanlines/retro noise, subtler grid)
+      - Everything else preserved: D-Pad + swipe, keyboard, pause/menu overlays,
+        sound toggle, particles on eat, flash, high score, reduced-motion respect.
+
+    Controls:
+      Desktop: WASD / Arrow keys to steer • Space start • P pause • Esc close overlay
+      Mobile: Swipe anywhere or use on-screen D-Pad • ▶ start • ⏸ pause
+  -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Snake</title>
+  <style>
+    :root{
+      --bg:#07070a;
+      --fg:#f4f6ff;
+      --muted:#b1b7ff;
+      --accent:#22d3ee;  /* cyan */
+      --accent2:#22c55e; /* green */
+      --danger:#ef4444;
+      --ring:#7c3aed;    /* violet */
+      --panel:#0f1117;
+      --radius:16px;
+      --shadow-1: 0 10px 30px rgba(0,0,0,.55);
+    }
+    @media (prefers-reduced-motion: reduce){
+      * { animation: none !important; transition: none !important; }
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(1200px 800px at 18% -8%, #1b0d3a 0%, transparent 60%),
+        radial-gradient(1200px 800px at 85% 115%, #063a3d 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg), #0b0b0f);
+      color:var(--fg);
+      font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    .wrap{ display:grid; grid-template-rows:auto 1fr auto; min-height:100dvh; }
+    header{
+      padding:10px 16px;
+      display:flex; align-items:center; gap:10px;
+    }
+    header a{ color:inherit; text-decoration:none; opacity:.85; }
+    header a:hover{ opacity:1; }
+    header a:focus-visible{
+      outline:none; box-shadow:0 0 0 3px color-mix(in oklab, var(--ring) 70%, white 30%);
+      border-radius:10px;
+    }
+
+    .stage{
+      position:relative;
+      display:grid; place-items:center;
+      padding:10px;
+    }
+    canvas{
+      width:100%; height:auto; max-height:calc(100dvh - 140px);
+      aspect-ratio:16/9;
+      /* Modern board: soft vignette only; grid is drawn in canvas */
+      background: radial-gradient(1100px 700px at 50% -250px, color-mix(in oklab, var(--panel) 85%, #fff 15%), var(--panel));
+      border-radius:16px; box-shadow:var(--shadow-1);
+      border:1px solid rgba(255,255,255,.06);
+      display:block; touch-action:none;
+    }
+
+    /* HUD */
+    .hud{
+      position:absolute; top:10px; left:10px; right:10px;
+      display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+      pointer-events:none;
+    }
+    .chip{
+      pointer-events:auto;
+      min-height:36px; padding:6px 10px; border-radius:999px;
+      background:color-mix(in oklab, var(--panel) 86%, #000 14%);
+      border:1px solid color-mix(in oklab, var(--ring), var(--fg) 40%);
+      display:flex; align-items:center; gap:8px; font-weight:700;
+    }
+    .hud .btn{ pointer-events:auto; }
+
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      min-height:44px; padding:10px 14px;
+      border-radius:12px; border:1px solid color-mix(in oklab, var(--ring), var(--fg) 40%);
+      background:transparent; color:inherit; text-decoration:none; font-weight:700; cursor:pointer;
+      transition:background .15s ease, box-shadow .15s ease;
+    }
+    .btn:hover{ background:rgba(255,255,255,.06); }
+    .btn.primary{
+      border-color: color-mix(in oklab, var(--accent2) 65%, var(--ring) 35%);
+      box-shadow: inset 0 0 0 9999px color-mix(in oklab, var(--accent2) 18%, transparent);
+    }
+    .btn.danger{ border-color: var(--danger); }
+    .btn:focus-visible{ outline:none; box-shadow:0 0 0 3px color-mix(in oklab, var(--ring) 70%, white 30%); }
+
+    /* Overlays */
+    .overlay{
+      position:absolute; inset:0; display:none;
+      align-items:center; justify-content:center;
+      background:color-mix(in oklab, #000 70%, transparent);
+      backdrop-filter:saturate(1.2) blur(4px);
+      border-radius:16px;
+    }
+    .overlay[aria-hidden="false"]{ display:flex; }
+    .panel{
+      width:min(92vw, 720px);
+      background:var(--panel); color:var(--fg);
+      border-radius:var(--radius); box-shadow:var(--shadow-1);
+      padding:20px; border:1px solid rgba(255,255,255,.08);
+    }
+    .panel h2{ margin:0 0 8px; font-size:1.25rem; }
+    .panel p{ margin:0 0 10px; color:var(--muted); }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+    .col{ flex:1 1 220px; min-width:220px; }
+    .select{
+      width:100%; min-height:44px; padding:8px 12px; border-radius:12px;
+      border:1px solid color-mix(in oklab, var(--ring), var(--fg) 40%);
+      background:transparent; color:inherit; font-weight:600;
+    }
+
+    /* Mobile Controls: D-Pad + Start/Pause */
+    .floating{
+      position:absolute; left:14px; bottom:14px; display:flex; align-items:center; gap:16px;
+    }
+    .dpad{
+      width:140px; height:140px; position:relative; display:grid; place-items:center;
+    }
+    .dpad .padbtn{
+      position:absolute; min-width:48px; min-height:48px; border-radius:12px;
+      border:1px solid color-mix(in oklab, var(--ring), var(--fg) 40%);
+      background:color-mix(in oklab, var(--panel) 86%, #000 14%);
+      display:inline-flex; align-items:center; justify-content:center; font-weight:800;
+    }
+    .pad-up{ top:0; left:50%; transform:translate(-50%,0); }
+    .pad-down{ bottom:0; left:50%; transform:translate(-50%,0); }
+    .pad-left{ left:0; top:50%; transform:translate(0,-50%); }
+    .pad-right{ right:0; top:50%; transform:translate(0,-50%); }
+
+    .fabcol{ display:flex; flex-direction:column; gap:10px; }
+    .fab{
+      min-width:48px; min-height:48px; border-radius:12px;
+      border:1px solid color-mix(in oklab, var(--ring), var(--fg) 40%);
+      background:color-mix(in oklab, var(--panel) 86%, #000 14%);
+      display:inline-flex; align-items:center; justify-content:center; font-weight:800;
+    }
+    @media (hover:none) and (pointer:coarse){ .floating{ display:flex; } }
+    @media (hover:hover){ .floating{ display:none; } }
+
+    footer{ padding:10px 16px; color:var(--muted); text-align:center; font-size:.9rem; }
+    .sr-only{ position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a href="./index.html" aria-label="Back to Arcade">← Arcade</a>
+    </header>
+
+    <div class="stage" aria-label="Game stage">
+      <canvas id="game" width="800" height="450" role="img" aria-label="Snake game canvas"></canvas>
+
+      <!-- HUD -->
+      <div class="hud" aria-live="polite">
+        <div class="chip" id="scoreChip" aria-label="Score display">Score: 0</div>
+        <div class="chip" id="highChip" aria-label="High score">High: 0</div>
+        <div class="chip" id="statusChip" aria-label="Status">Ready</div>
+        <button class="btn" id="muteBtn" aria-pressed="true" title="Toggle sound">🔇</button>
+        <button class="btn" id="pauseBtn" title="Pause (P)">Pause</button>
+      </div>
+
+      <!-- Menu Overlay -->
+      <div class="overlay" id="menu" aria-hidden="false" aria-modal="true" role="dialog">
+        <div class="panel" role="document">
+          <h2>🐍 Snake</h2>
+          <p>Eat the fruit, grow the snake, avoid walls and yourself. One hit ends the run.</p>
+          <div class="row">
+            <div class="col">
+              <label for="diffSel" class="sr-only">Difficulty</label>
+              <select id="diffSel" class="select" aria-label="Difficulty">
+                <option value="easy">Easy (7 tps)</option>
+                <option value="normal" selected>Normal (10 tps)</option>
+                <option value="hard">Hard (14 tps)</option>
+              </select>
+            </div>
+            <div class="col">
+              <button id="menuStart" class="btn primary" style="width:100%">Play</button>
+            </div>
+            <div class="col">
+              <button id="menuMute" class="btn" style="width:100%">Toggle Sound</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="col">
+              <details>
+                <summary><strong>Controls</strong></summary>
+                <p style="margin-top:8px">
+                  Desktop: <kbd>WASD</kbd> or <kbd>↑↓←→</kbd>. <kbd>Space</kbd> start, <kbd>P</kbd> pause, <kbd>Esc</kbd> closes overlays.<br>
+                  Mobile: Swipe anywhere or use the on-screen D-Pad. ▶ to start, ⏸ to pause.
+                </p>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pause Overlay -->
+      <div class="overlay" id="pause" aria-hidden="true" aria-modal="true" role="dialog">
+        <div class="panel" role="document">
+          <h2>⏸ Paused</h2>
+          <p>Resume or reset.</p>
+          <div class="row">
+            <div class="col"><button id="resumeBtn" class="btn primary" style="width:100%">Resume</button></div>
+            <div class="col"><button id="toMenuBtn" class="btn" style="width:100%">Main Menu</button></div>
+            <div class="col"><button id="resetHighBtn" class="btn danger" style="width:100%">Reset High Score</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Over Overlay -->
+      <div class="overlay" id="gameover" aria-hidden="true" aria-modal="true" role="dialog">
+        <div class="panel" role="document">
+          <h2>🏁 Game Over</h2>
+          <p id="resultText">Score: 0</p>
+          <div class="row">
+            <div class="col"><button id="againBtn" class="btn primary" style="width:100%">Play Again</button></div>
+            <div class="col"><button id="goMenuBtn" class="btn" style="width:100%">Main Menu</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile controls -->
+      <div class="floating" aria-label="Mobile gameplay buttons">
+        <div class="dpad" aria-hidden="false">
+          <button class="padbtn pad-up"    data-dir="up"    aria-label="Up">▲</button>
+          <button class="padbtn pad-down"  data-dir="down"  aria-label="Down">▼</button>
+          <button class="padbtn pad-left"  data-dir="left"  aria-label="Left">◀</button>
+          <button class="padbtn pad-right" data-dir="right" aria-label="Right">▶</button>
+        </div>
+        <div class="fabcol">
+          <button class="fab" id="startFab" title="Start / Continue">⏵</button>
+          <button class="fab" id="pauseFab" title="Pause">⏸</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Tip: The grid is retina-sharp and scales cleanly when you resize or rotate.
+    </footer>
+  </div>
+
+  <script>
+  ;(() => {
+    /***********************
+     * Config & Constants  *
+     ***********************/
+    const CONFIG = {
+      COURT_W: 800,
+      COURT_H: 450,
+      COLS: 80,          // 10px cell size at 800x450
+      ROWS: 45,
+      INIT_LEN: 5,
+      FOOD_COUNT: 1,
+      SPEED: { easy: 7, normal: 10, hard: 14 }, // ticks per second
+      COLORS: {
+        gridThin: 'rgba(255,255,255,0.06)',
+        gridBold: 'rgba(255,255,255,0.10)',
+        glow: 'rgba(34,211,238,0.7)',   // cyan glow for snake
+        head: '#5ef2a6',                // bright green head
+        body: '#22c55e',                // green body
+        fruit: '#fbbf24',               // amber fruit
+        fruitHalo: 'rgba(251,191,36,0.30)'
+      },
+      SOUNDS: { eatFreq: 740, moveFreq: 180, dieFreq: 140 },
+      SHAKE_INTENSITY: 6,               // px
+      FLASH_FADE: 220,                  // ms flash fade after eat
+      PARTICLES: 22,                    // burst pieces on eat
+    };
+
+    const CELL = { w: CONFIG.COURT_W / CONFIG.COLS, h: CONFIG.COURT_H / CONFIG.ROWS };
+    const prefersNoMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /***********************
+     * State               *
+     ***********************/
+    const state = {
+      difficulty: 'normal',
+      muted: prefersNoMotion,           // start muted if reduced motion set
+      running: false,
+      paused: false,
+      lastFrame: performance.now(),
+      acc: 0,
+      tickDur: 1 / CONFIG.SPEED.normal,
+
+      dir: { x: 1, y: 0 },              // current heading
+      nextDir: { x: 1, y: 0 },          // queued heading
+      snake: [],
+      food: [],
+      score: 0,
+      high: Number(localStorage.getItem('snake.high') || 0),
+
+      // Visual FX
+      flashAlpha: 0,                    // quick flash on eat
+      shake: 0,                         // remaining ms of shake
+      particles: [],                    // particle system
+      fruitPulseT: 0,                   // fruit animation timer
+    };
+
+    /***********************
+     * Canvas setup (Hi-DPI)
+     ***********************/
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    function setupHiDPI(){
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      // Set backing store size to CSS size * dpr
+      canvas.width  = CONFIG.COURT_W * dpr;
+      canvas.height = CONFIG.COURT_H * dpr;
+      // Keep CSS size as logical size
+      canvas.style.width  = CONFIG.COURT_W + 'px';
+      canvas.style.height = CONFIG.COURT_H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale to logical units
+      ctx.lineWidth = 1 / dpr;                // 1 CSS px lines
+    }
+    setupHiDPI();
+    // Re-setup on zoom/DPR/orientation changes
+    window.addEventListener('resize', setupHiDPI);
+
+    function clear(){ ctx.clearRect(0,0,CONFIG.COURT_W,CONFIG.COURT_H); }
+    function toPx(c){ return { x: c.x * CELL.w, y: c.y * CELL.h }; }
+
+    /***********************
+     * Audio Helpers       *
+     ***********************/
+    let ac;
+    function ensureAC(){
+      if (!ac) {
+        const A = window.AudioContext || window.webkitAudioContext;
+        if (A) ac = new A();
+      }
+    }
+    function beep(freq=440, dur=0.05, type='square', vol=0.03){
+      if (state.muted) return;
+      ensureAC(); if (!ac) return;
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.value = vol;
+      o.connect(g).connect(ac.destination);
+      o.start();
+      o.stop(ac.currentTime + dur);
+    }
+
+    /***********************
+     * Helpers             *
+     ***********************/
+    function randInt(n){ return Math.floor(Math.random()*n); }
+    function cellEq(a,b){ return a.x===b.x && a.y===b.y; }
+    function inBounds(c){ return c.x>=0 && c.x<CONFIG.COLS && c.y>=0 && c.y<CONFIG.ROWS; }
+
+    function emptyCell(){
+      while(true){
+        const c = {x: randInt(CONFIG.COLS), y: randInt(CONFIG.ROWS)};
+        if (state.snake.some(s => cellEq(s,c))) continue;
+        if (state.food.some(f => cellEq(f,c))) continue;
+        return c;
+      }
+    }
+
+    function roundedRect(x,y,w,h,r){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+    }
+
+    /***********************
+     * Particles           *
+     ***********************/
+    function spawnParticles(cell){
+      const p = toPx(cell);
+      for (let i=0;i<CONFIG.PARTICLES;i++){
+        const ang = Math.random()*Math.PI*2;
+        const spd = 60 + Math.random()*140;
+        state.particles.push({
+          x: p.x + CELL.w/2, y: p.y + CELL.h/2,
+          vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd,
+          life: 0.45 + Math.random()*0.35,
+        });
+      }
+    }
+    function updateParticles(dt){
+      state.particles = state.particles.filter(pt=>{
+        pt.life -= dt;
+        pt.x += pt.vx*dt;
+        pt.y += pt.vy*dt;
+        return pt.life > 0;
+      });
+    }
+    function drawParticles(){
+      ctx.save();
+      for (const pt of state.particles){
+        const a = Math.max(0, Math.min(1, pt.life / 0.4));
+        ctx.fillStyle = `rgba(251,191,36,${a})`; // amber
+        const s = 2 + (1-a)*2;
+        roundedRect(pt.x-s/2, pt.y-s/2, s, s, s/2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    /***********************
+     * Game Setup/Reset    *
+     ***********************/
+    function startRun(){
+      state.score = 0;
+      state.dir = {x:1,y:0};
+      state.nextDir = {x:1,y:0};
+
+      const y = Math.floor(CONFIG.ROWS/2);
+      const x0 = Math.floor(CONFIG.COLS/2) - Math.floor(CONFIG.INIT_LEN/2);
+      state.snake = [];
+      for (let i=0;i<CONFIG.INIT_LEN;i++) state.snake.push({x:x0+i, y});
+
+      state.food = [];
+      for (let i=0;i<CONFIG.FOOD_COUNT;i++) state.food.push(emptyCell());
+
+      state.particles.length = 0;
+      state.flashAlpha = 0;
+
+      state.running = true;
+      state.paused = false;
+      state.acc = 0;
+      statusChip.textContent = 'Playing';
+      beep(520,0.06,'sawtooth',0.02);
+    }
+
+    function stopRun(){
+      state.running = false; state.paused = false;
+      statusChip.textContent = 'Stopped';
+    }
+
+    function gameOver(){
+      state.running = false;
+      if (state.score > state.high){
+        state.high = state.score;
+        localStorage.setItem('snake.high', String(state.high));
+      }
+      highChip.textContent = `High: ${state.high}`;
+      resultText.textContent = `Score: ${state.score}`;
+      openOverlay(overEl);
+      beep(CONFIG.SOUNDS.dieFreq,0.12,'sine',0.05);
+    }
+
+    /***********************
+     * Input (Keyboard)    *
+     ***********************/
+    const KEYDIR = {
+      ArrowUp: {x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0},
+      KeyW: {x:0,y:-1}, KeyS:{x:0,y:1}, KeyA:{x:-1,y:0}, KeyD:{x:1,y:0},
+    };
+    window.addEventListener('keydown', (e)=>{
+      const code = e.code;
+      if (code in KEYDIR){
+        e.preventDefault();
+        setDirection(KEYDIR[code]);
+      } else if (code==='Space'){ e.preventDefault(); if (!state.running){ closeOverlay(menuEl); startRun(); } }
+      else if (code==='KeyP'){ e.preventDefault(); togglePause(); }
+      else if (code==='Escape'){ closeOverlays(); }
+    });
+
+    function setDirection(d){
+      if (d.x === -state.dir.x && d.y === -state.dir.y) return; // no reverse
+      state.nextDir = d;
+      beep(CONFIG.SOUNDS.moveFreq, 0.02, 'triangle', 0.02);
+    }
+
+    /***********************
+     * Input (Touch)       *
+     ***********************/
+    document.querySelectorAll('.padbtn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const m = btn.dataset.dir;
+        if (m==='up') setDirection({x:0,y:-1});
+        if (m==='down') setDirection({x:0,y:1});
+        if (m==='left') setDirection({x:-1,y:0});
+        if (m==='right') setDirection({x:1,y:0});
+      });
+    });
+    document.getElementById('startFab').addEventListener('click', ()=>{ if (!state.running){ closeOverlay(menuEl); startRun(); } });
+    document.getElementById('pauseFab').addEventListener('click', togglePause);
+
+    // Swipe gestures
+    let swipeStart=null;
+    canvas.addEventListener('pointerdown', (e)=>{ swipeStart = {x:e.clientX, y:e.clientY}; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointerup', (e)=>{
+      if (!swipeStart) return;
+      const dx = e.clientX - swipeStart.x;
+      const dy = e.clientY - swipeStart.y;
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      swipeStart = null;
+      if (Math.max(ax,ay) < 16) return;
+      if (ax > ay){ setDirection({x: Math.sign(dx), y:0}); }
+      else { setDirection({x:0, y: Math.sign(dy)}); }
+    });
+
+    /***********************
+     * UI Overlays & HUD   *
+     ***********************/
+    const menuEl = document.getElementById('menu');
+    const pauseEl = document.getElementById('pause');
+    const overEl  = document.getElementById('gameover');
+    const resultText = document.getElementById('resultText');
+
+    function openOverlay(el){ el.setAttribute('aria-hidden','false'); }
+    function closeOverlay(el){ el.setAttribute('aria-hidden','true'); }
+    function closeOverlays(){ [menuEl,pauseEl,overEl].forEach(closeOverlay); }
+
+    const diffSel = document.getElementById('diffSel');
+    document.getElementById('menuStart').addEventListener('click', ()=>{ state.difficulty = diffSel.value; applyDifficulty(); closeOverlay(menuEl); startRun(); });
+    document.getElementById('menuMute').addEventListener('click', ()=>{ state.muted = !state.muted; updateMuteBtn(); });
+
+    document.getElementById('resumeBtn').addEventListener('click', ()=>{ togglePause(false); });
+    document.getElementById('toMenuBtn').addEventListener('click', ()=>{ togglePause(false); openOverlay(menuEl); stopRun(); });
+    document.getElementById('resetHighBtn').addEventListener('click', ()=>{ state.high = 0; localStorage.setItem('snake.high','0'); highChip.textContent = 'High: 0'; });
+
+    document.getElementById('againBtn').addEventListener('click', ()=>{ closeOverlay(overEl); startRun(); });
+    document.getElementById('goMenuBtn').addEventListener('click', ()=>{ closeOverlay(overEl); openOverlay(menuEl); stopRun(); });
+
+    const scoreChip = document.getElementById('scoreChip');
+    const highChip  = document.getElementById('highChip');
+    const statusChip= document.getElementById('statusChip');
+    const muteBtn   = document.getElementById('muteBtn');
+    document.getElementById('pauseBtn').addEventListener('click', togglePause);
+    function updateMuteBtn(){
+      muteBtn.textContent = state.muted ? '🔇' : '🔊';
+      muteBtn.setAttribute('aria-pressed', String(state.muted));
+    }
+    muteBtn.addEventListener('click', ()=>{ state.muted = !state.muted; updateMuteBtn(); });
+
+    function togglePause(force){
+      if (!state.running) return;
+      const next = typeof force === 'boolean' ? force : !state.paused;
+      state.paused = next;
+      if (state.paused){ openOverlay(pauseEl); statusChip.textContent = 'Paused'; }
+      else { closeOverlay(pauseEl); statusChip.textContent = 'Playing'; state.lastFrame = performance.now(); }
+    }
+
+    document.addEventListener('visibilitychange', ()=>{
+      if (document.hidden && state.running && !state.paused){ togglePause(true); }
+    });
+
+    function applyDifficulty(){
+      const tps = CONFIG.SPEED[state.difficulty] || CONFIG.SPEED.normal;
+      state.tickDur = 1 / tps;
+    }
+
+    /***********************
+     * Game Tick (logic)   *
+     ***********************/
+    function tick(){
+      // Update heading atomically per tick
+      state.dir = state.nextDir;
+
+      const head = state.snake[state.snake.length-1];
+      const nx = head.x + state.dir.x;
+      const ny = head.y + state.dir.y;
+      const newHead = {x:nx, y:ny};
+
+      // Collisions
+      if (!inBounds(newHead) || state.snake.some(s => cellEq(s,newHead))){
+        gameOver();
+        return;
+      }
+
+      // Eat?
+      let ateIdx = -1;
+      for (let i=0;i<state.food.length;i++){
+        if (cellEq(state.food[i], newHead)) { ateIdx = i; break; }
+      }
+
+      state.snake.push(newHead);
+      if (ateIdx >= 0){
+        state.score += 1;
+        scoreChip.textContent = `Score: ${state.score}`;
+        beep(CONFIG.SOUNDS.eatFreq,0.05,'square',0.03);
+        // FX: flash + particles + mini-shake
+        state.flashAlpha = 1;
+        spawnParticles(state.food[ateIdx]);
+        if (!prefersNoMotion) state.shake = 120; // ms
+        // Replace fruit
+        state.food[ateIdx] = emptyCell();
+      } else {
+        state.snake.shift();
+      }
+    }
+
+    /***********************
+     * Render              *
+     ***********************/
+    function drawGrid(){
+      // Draw a thin grid every 2 cells and a subtle bold every 10 cells.
+      // Use 0.5 alignment with lineWidth=1/dpr for pixel-perfect strokes.
+      const thin = CONFIG.COLORS.gridThin;
+      const bold = CONFIG.COLORS.gridBold;
+
+      // Vertical lines
+      for (let x=0; x<=CONFIG.COLS; x++){
+        const px = Math.round(x*CELL.w) + 0.5; // align to pixel grid
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, CONFIG.COURT_H);
+        ctx.strokeStyle = (x % 10 === 0) ? bold : (x % 2 === 0 ? thin : 'transparent');
+        ctx.stroke();
+      }
+      // Horizontal lines
+      for (let y=0; y<=CONFIG.ROWS; y++){
+        const py = Math.round(y*CELL.h) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, py);
+        ctx.lineTo(CONFIG.COURT_W, py);
+        ctx.strokeStyle = (y % 10 === 0) ? bold : (y % 2 === 0 ? thin : 'transparent');
+        ctx.stroke();
+      }
+    }
+
+    function drawFruit(dt){
+      state.fruitPulseT += dt;
+      for (const f of state.food){
+        const p = toPx(f);
+        const t = state.fruitPulseT;
+        const wiggle = (Math.sin(t*4 + (p.x+p.y)*0.01) + 1) * 0.5;
+        const rpad = 0.5 + wiggle*1.0; // subtler than before
+
+        // Halo (reduced)
+        ctx.save();
+        const haloGrad = ctx.createRadialGradient(
+          p.x + CELL.w/2, p.y + CELL.h/2, 2,
+          p.x + CELL.w/2, p.y + CELL.h/2, Math.max(CELL.w, CELL.h)*1.2
+        );
+        haloGrad.addColorStop(0, CONFIG.COlORS?.fruitHalo || 'rgba(251,191,36,0.30)');
+        haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = haloGrad;
+        ctx.globalAlpha = 0.6;
+        roundedRect(p.x - rpad, p.y - rpad, CELL.w + rpad*2, CELL.h + rpad*2, 6);
+        ctx.fill();
+        ctx.restore();
+
+        // Fruit body
+        ctx.save();
+        const grad = ctx.createLinearGradient(p.x, p.y, p.x + CELL.w, p.y + CELL.h);
+        grad.addColorStop(0, '#fde68a');
+        grad.addColorStop(1, CONFIG.COLORS.fruit);
+        ctx.fillStyle = grad;
+        roundedRect(p.x+1, p.y+1, CELL.w-2, CELL.h-2, 5);
+        ctx.fill();
+
+        // Spark highlight
+        ctx.globalAlpha = 0.45 + wiggle*0.2;
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        roundedRect(p.x+2, p.y+2, (CELL.w-4)*0.35, (CELL.h-4)*0.35, 4);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawSnake(){
+      ctx.save();
+      // Soft glow
+      ctx.shadowColor = CONFIG.COLORS.glow;
+      ctx.shadowBlur = 10;
+
+      for (let i=0;i<state.snake.length;i++){
+        const s = state.snake[i];
+        const p = toPx(s);
+        const isHead = i === state.snake.length-1;
+
+        const g = ctx.createLinearGradient(p.x, p.y, p.x+CELL.w, p.y+CELL.h);
+        if (isHead){ g.addColorStop(0, CONFIG.COLORS.head); g.addColorStop(1, '#46e08d'); }
+        else { g.addColorStop(0, CONFIG.COLORS.body); g.addColorStop(1, '#1fbf59'); }
+
+        ctx.fillStyle = g;
+        roundedRect(p.x+0.6, p.y+0.6, CELL.w-1.2, CELL.h-1.2, 4.5);
+        ctx.fill();
+
+        // Minimal head dots
+        if (isHead){
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          const eyeR = Math.min(2, CELL.w*0.2);
+          const cx = p.x + CELL.w*0.65;
+          const cy = p.y + CELL.h*0.35;
+          ctx.beginPath(); ctx.arc(cx, cy, eyeR, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(cx - CELL.w*0.2, cy + CELL.h*0.3, eyeR, 0, Math.PI*2); ctx.fill();
+          ctx.shadowBlur = 10;
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawFlash(dt){
+      if (state.flashAlpha <= 0) return;
+      state.flashAlpha = Math.max(0, state.flashAlpha - dt*(1000/CONFIG.FLASH_FADE));
+      ctx.save();
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.18, state.flashAlpha*0.2)})`;
+      ctx.fillRect(0,0,CONFIG.COURT_W,CONFIG.COURT_H);
+      ctx.restore();
+    }
+
+    function render(dt){
+      // Optional shake
+      let shakeX = 0, shakeY = 0;
+      if (state.shake > 0){
+        state.shake -= dt*1000;
+        const strength = prefersNoMotion ? 0 : CONFIG.SHAKE_INTENSITY;
+        shakeX = (Math.random()*2-1) * strength;
+        shakeY = (Math.random()*2-1) * strength;
+      }
+
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+
+      clear();
+      drawGrid();
+      drawFruit(dt);
+      drawSnake();
+      drawParticles();
+
+      ctx.restore();
+      drawFlash(dt);
+    }
+
+    /***********************
+     * Main Loop           *
+     ***********************/
+    function frame(now){
+      const dt = Math.min(0.033, (now - state.lastFrame)/1000);
+      state.lastFrame = now;
+
+      if (state.running && !state.paused){
+        state.acc += dt;
+        while (state.acc >= state.tickDur){
+          tick();
+          state.acc -= state.tickDur;
+          if (!state.running) break;
+        }
+        updateParticles(dt);
+      }
+      render(dt);
+      requestAnimationFrame(frame);
+    }
+
+    /***********************
+     * Boot                *
+     ***********************/
+    function init(){
+      highChip.textContent = `High: ${state.high}`;
+      scoreChip.textContent = `Score: ${state.score}`;
+      statusChip.textContent = 'Ready';
+      applyDifficulty();
+      updateMuteBtn();
+      requestAnimationFrame((t)=>{ state.lastFrame = t; requestAnimationFrame(frame); });
+    }
+
+    // Wire difficulty selector
+    diffSel.addEventListener('change', ()=>{ state.difficulty = diffSel.value; applyDifficulty(); });
+
+    // Start
+    init();
+  })();
+  </script>
+</body>
+</html>
